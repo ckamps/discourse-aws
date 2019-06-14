@@ -1,0 +1,118 @@
+discourse:
+  fqdn: foo.bar.com
+  unicorn_workers: 4
+  smtp:
+    server: mail.foobar.com
+    port: 25
+  plugins:
+    - https://github.com/discourse/docker_manager.git
+    - https://github.com/discourse/discourse-saml.git
+    - https://github.com/discourse/discourse-data-explorer
+    - https://github.com/discourse/discourse-solved
+  admin_emails:
+    - foo@bar.com
+  saml: 
+    target_url: https://foobar.com
+    fingerprint: ...
+    cert: |
+      -----BEGIN CERTIFICATE-----
+      ... 
+      -----END CERTIFICATE-----
+  site_settings:
+    #----------------------------------------------------------------------
+    # Required
+    #----------------------------------------------------------------------
+    title: 'ACME Cloud Community Forum'
+    site_description: 'Internal discussion forum for ACME technologists using cloud platforms'
+    short_site_description: 'Internal cloud discussion'
+    contact_email: foo@foobar.com
+    contact_url: http://clouddocs.foobar.com
+    notification_email: noreply@foorbar.com
+    company_name: Foo Bar
+    governing_law: United States of America
+    city_for_disputes: Foobar, Iowa
+    #----------------------------------------------------------------------
+    # Branding
+    #----------------------------------------------------------------------
+    #----------------------------------------------------------------------
+    # Basic Setup
+    #----------------------------------------------------------------------
+    top_menu: categories|latest|top|unread|new
+    fixed_category_positions: true
+    desktop_category_page_style: categories_and_latest_topics
+    #----------------------------------------------------------------------
+    # Login
+    #----------------------------------------------------------------------
+    login_required: true
+    enable_local_logins: false
+    allow_new_registrations: false
+    maximum_session_age: 1440
+    #----------------------------------------------------------------------
+    # Users
+    #----------------------------------------------------------------------
+    email_editable: false
+    prioritize_username_in_ux: true
+    #----------------------------------------------------------------------
+    # Posting
+    #----------------------------------------------------------------------
+    min_post_length: 1
+    min_first_post_length: 1
+    display_name_on_posts: true
+    allow_uncategorized_topics: false
+    # emoji_set: Apple/International
+    #----------------------------------------------------------------------
+    # Email
+    #----------------------------------------------------------------------
+    email_subject: '[Cloud Forum] %{optional_pm}%{optional_cat}%{topic_title}'
+    #----------------------------------------------------------------------
+    # Files
+    #----------------------------------------------------------------------
+    #enable_s3_uploads: true
+    #s3_use_iam_profile: true
+    #s3_region: us-east-1
+    #s3_upload_bucket: foobar-discourse-cloud-uploads-demo-us-east-1
+    #----------------------------------------------------------------------
+    # Trust Levels
+    #----------------------------------------------------------------------
+    default_trust_level: 3
+    #----------------------------------------------------------------------
+    # Security
+    #----------------------------------------------------------------------
+    force_https: true
+    allow_index_in_robots_txt: false
+    moderators_create_categories: true
+    content_security_policy: true
+    #----------------------------------------------------------------------
+    # Rate Limits
+    #----------------------------------------------------------------------
+    rate_limit_new_user_create_topic: 10
+    rate_limit_new_user_create_post: 10
+    max_topics_in_first_day: 30
+    max_replies_in_first_day: 30
+    #----------------------------------------------------------------------
+    # Legal
+    #----------------------------------------------------------------------
+    privacy_policy_url: https://privacy-policy
+    faq_url: https://faq
+    #----------------------------------------------------------------------
+    # Backups
+    #----------------------------------------------------------------------
+    backup_frequency: 1
+    maximum_backups: 10
+    include_thumbnails_in_backups: true
+    readonly_mode_during_backup: true
+    #s3_backup_bucket: foobar-discourse-cloud-backups-demo-us-east-1
+    #s3_disable_cleanup: true
+    #----------------------------------------------------------------------
+    # Other
+    #----------------------------------------------------------------------
+    bootstrap_mode_min_users: 0
+    show_create_topics_notice: false
+    #----------------------------------------------------------------------
+    # User API
+    #----------------------------------------------------------------------
+    allow_user_api_keys: false
+    #----------------------------------------------------------------------
+    # Tags
+    #----------------------------------------------------------------------
+    tagging_enabled: true

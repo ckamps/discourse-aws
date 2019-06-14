@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+
+set -x 
+
+PARAMS=""
+while (( "$#" )); do
+  case "$1" in
+    -u|--update)
+      UPDATE=1
+      shift 1
+      ;;
+    -v|--vpc-name)
+      VPC_NAME_ARG=$2
+      shift 2
+      ;;
+    -s|--stack-name)
+      STACK_NAME_ARG=$2
+      shift 2
+      ;;
+    -a|--app-name)
+      APP_NAME_ARG=$2
+      shift 2
+      ;;
+    -e|--env-purpose)
+      ENV_PURPOSE_ARG=$2
+      shift 2
+      ;;
+    -o|--owner-email)
+      OWNER_EMAIL_ARG=$2
+      shift 1
+      ;;
+    -t|--template)
+      TEMPLATE_ARG=$2
+      shift 2
+      ;;
+    -p|--project)
+     PROJECT_ARG=$2
+      shift 2
+      ;;
+    -n|--role-arn)
+      ROLE_ARN_ARG=$2
+      shift 2
+      ;;
+#    -p|--profile)
+#      PROFILE_ARG=$2
+#      shift 2
+#      ;;
+    -r|--region)
+      REGION_ARG=$2
+      shift 2
+      ;;
+    --) # end argument parsing
+      shift
+      break
+      ;;
+    -*|--*=) # unsupported flags
+      echo "Error: Unsupported flag $1" >&2
+      exit 1
+      ;;
+    *) # preserve positional arguments
+      PARAMS="$PARAMS $1"
+      shift
+      ;;
+  esac
+done
+# set positional arguments in their proper place
+eval set -- "$PARAMS"
+
+if [ -z $UPDATE ]; then
+  CMD='create-stack --enable-termination-protection'
+else
+  CMD='update-stack'
+fi
+
+if [ -z ${APP_NAME_ARG+x} ]; then
+  APP_NAME=sample
+else
+  APP_NAME=$APP_NAME_ARG
+fi
+
+if [ -z ${ENV_PURPOSE_ARG+x} ]; then
+   ENV_PURPOSE=dev
+else
+  ENV_PURPOSE=$ENV_PURPOSE_ARG
+fi
+
+if [ -z ${OWNER_EMAIL_ARG+x} ]; then
+   OWNER_EMAIL=owner@foobar.com
+else
+  OWNER_EMAIL=$OWNER_EMAIL_ARG
+fi
+
+if [ -z ${VPC_NAME_ARG+x} ]; then
+  VPC_NAME=shared-test
+else
+  VPC_NAME=$VPC_NAME_ARG
+fi
+
+if [ -z ${STACK_NAME_ARG+x} ]; then
+  STACK_NAME=discourse-${APP_NAME}-${ENV_PURPOSE}
+else
+  STACK_NAME=$STACK_NAME_ARG
+fi
+
+if [ -z ${TEMPLATE_ARG+x} ]; then
+  TEMPLATE=discourse-setup.yml
+else
+  TEMPLATE=$TEMPLATE_ARG
+fi
+
+if [ -z ${PROJECT_ARG+x} ]; then
+  PROJECT=P123456
+else
+  PROJECT=$PROJECT_ARG
+fi
+
+if [ -z ${PROFILE_ARG+x} ]; then
+  PROFILE=dummy
+else
+  PROFILE=$PROFILE_ARG
+fi
+
+if [ -z ${ROLE_ARN_ARG+x} ]; then
+  ROLE_ARN=arn:aws:iam::123456789012:role/foobar
+else
+  ROLE_ARN=$ROLE_ARN_ARG
+fi
+
+if [ -z ${REGION_ARG+x} ]; then
+  REGION=us-east-1
+else
+  REGION=$PROFILE_ARG
+fi
+
+aws cloudformation ${CMD} \
+                     --stack-name ${STACK_NAME} \
+                     --template-body file://../${TEMPLATE} \
+                     --parameters \
+                         ParameterKey=pApp,ParameterValue=${APP_NAME} \
+                         ParameterKey=pAppEnvPurpose,ParameterValue=${ENV_PURPOSE} \
+                     --tags \
+                         Key=app-name,Value=discourse-${APP_NAME} \
+                         Key=app-id,Value=discourse-${APP_NAME} \
+                         Key=owner,Value=${OWNER_EMAIL} \
+                         Key=project,Value=${PROJECT} \
+                         Key=data-class,Value=internal \
+                         Key=data-type,Value=ip \
+                         Key=support-group,Value=support-team-a \
+                     --capabilities CAPABILITY_NAMED_IAM \
+                     --region ${REGION} \
+                     --role-arn ${ROLE_ARN}
+
+                     #--region ${REGION} \
+                     #--profile ${PROFILE}
+
+#aws cloudformation wait stack-create-complete --stack-name ${STACK_NAME} --region ${AWS_REGION} --profile ${AWS_PROFILE}

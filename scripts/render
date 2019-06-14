@@ -1,0 +1,55 @@
+#!/bin/bash
+
+#set -x
+
+PARAMS=""
+while (( "$#" )); do
+  case "$1" in
+    -a|--app-name)
+      APP_NAME_ARG=$2
+      shift 2
+      ;;
+    -e|--env-purpose)
+      ENV_PURPOSE_ARG=$2
+      shift 2
+      ;;
+    --) # end argument parsing
+      shift
+      break
+      ;;
+    -*|--*=) # unsupported flags
+      echo "Error: Unsupported flag $1" >&2
+      exit 1
+      ;;
+    *) # preserve positional arguments
+      PARAMS="$PARAMS $1"
+      shift
+      ;;
+  esac
+done
+# set positional arguments in their proper place
+eval set -- "$PARAMS"
+
+if [ -z ${APP_NAME_ARG+x} ]; then
+  APP_NAME=sample
+else
+  APP_NAME=$APP_NAME_ARG
+fi
+
+if [ -z ${ENV_PURPOSE_ARG+x} ]; then
+   ENV_PURPOSE=dev
+else
+  ENV_PURPOSE=$ENV_PURPOSE_ARG
+fi
+
+RENDERED_FILE=discourse-${APP_NAME}-${ENV_PURPOSE}-app.yml
+
+mkdir -p ../target
+
+echo "Applying Jinja2 template to produce rendered Discourse app.yml file: ../target/${RENDERED_FILE}"
+
+jinja2 ../j2-templates/app.yml.j2 ../environments/${APP_NAME}-${ENV_PURPOSE}.yml --format=yml > ../target/${RENDERED_FILE}
+
+#echo "Executing ??? to validate rendered YAML file..."
+
+#??? ../target/${RENDERED_FILE}
