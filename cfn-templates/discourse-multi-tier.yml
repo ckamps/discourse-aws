@@ -18,13 +18,67 @@ Description: Discourse Discussion Forum Deployment to EC2 and Docker
 #      * Predicated on CD pipeline to build, validate and publish image
 #        to ECR
 #----------------------------------------------------------------------
-        
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Application Classification
+      Parameters:
+      - pOrg
+      - pSystem
+      - pApp
+    - Label:
+        default: Application Environment
+      Parameters:
+      - pEnvPurpose
+    - Label:
+        default: Network
+      Parameters:
+      - pVpcName
+      - pAlbSubnetNameQualifier
+      - pWebSubnetNameQualifier
+      - pDbSubnetNameQualifier
+    - Label:
+        default: Auto Scaling
+      Parameters:
+      - pAlbScheme
+      - pAlbIngressCidrIp
+      - pServerCount
+      - pInstanceType
+
+    ParameterLabels:
+      pEnvPurpose:
+        default: Environment Purpose
+      pOrg:
+        default: Organization Identifier
+      pSystem:
+        default: System Identifier
+      pApp:
+        default: Application Identifier
+      pVpcName:
+        default: VPC Name
+      pAlbSubnetNameQualifier:
+        default: ALB Subnet Name Qualifier
+      pWebSubnetNameQualifier:
+        default: Web Server Subnet Name Qualifier
+      pDbSubnetNameQualifier:
+        default: Web Server Subnet Name Qualifier
+      pAlbScheme:
+        default: Application Load Balancer (ALB) Scheme
+      pAlbIngressCidrIp:
+        default: Application Load Balancer (ALB) Allowed Ingress CIDR IP Range
+      pServerCount:
+        default: Number of EC2 Instances
+      pInstanceType:
+        default: EC2 Instance Type
+
 Parameters:
-  pBizScope:
+  pOrg:
     Type: String
     Description: Used to qualify resource names
-    Default: foobar
-  
+    Default: acme
+
   pSystem:
     Type: String
     Description: Used to qualify resource names
@@ -34,45 +88,35 @@ Parameters:
     Type: String
     Description: Used to qualify resource names
     Default: sample
-  
-  pAppEnvPurpose:
+
+  pEnvPurpose:
     Type: String
     Description: Used to qualify resource names. 10 characters max.
     AllowedPattern: '^[a-zA-Z0-9-_]{1,10}$'
-    Default: dev
 
-  # Ideally, the VPC and subnet IDs could be either imported from
-  # an exported CFN variable or obtained dynamically through some
-  # other means.
-  pVpcId:
-    Description: ID of the existing VPC
+  pVpcName:
+    Description: Name of the existing VPC
     Type: String
-    Default: vpc-12345678
 
-  pAlbSubnetId1:
-    Description: Target subnet 1 for ALB
+  pAlbSubnetNameQualifier:
+    Description: Name qualifier for subnet in which ALB is to be deployed
     Type: String
-    Default: subnet-12345678
+    Default: public
 
-  pAlbSubnetId2:
-    Description: Target subnet 2 for ALB
+  pWebSubnetNameQualifier:
+    Description: Name qualifier for subnet in which web server is to be deployed
     Type: String
-    Default: subnet-12345678
+    Default: private
 
-  pAppSubnetId1:
-    Description: Target subnet 1 for app
-    Type: String
-    Default: subnet-12345678
-
-  pAppSubnetId2:
-    Description: Target subnet 2 for app
-    Type: String
-    Default: subnet-12345678
+  pDbSubnetNameQualifier:
+      Description: Name qualifier for subnet in which DB is to be deployed
+      Type: String
+      Default: restricted
 
   pAlbScheme:
     Description: ALB Scheme
     Type: String
-    Default: internal
+    Default: internet-facing
     AllowedValues:
     - internal
     - internet-facing
@@ -86,32 +130,32 @@ Parameters:
     AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
 
-  # Initially, we'll keep the server count to 1 because supporting more than 
+  # Initially, we'll keep the server count to 1 because supporting more than
   # 1 EC2/Docker container instance of Discourse will require us to split
   # out not only the RDBMS, but also Redis. Which is doable, but just not
   # a high priority at this time.
   pServerCount:
-    Description: Number of Amazon EC2 instances to launch for the web server
+    Description: Number of Amazon EC2 instances to launch for the web tier
     Type: Number
-    Default: '1'
+    Default: 1
 
   pInstanceType:
-    Description: WebServer EC2 instance type
+    Description: Web tier EC2 instance type
     Type: String
-    Default: t2.small
+    Default: t3a.small
     AllowedValues:
-      - t2.micro
-      - t2.small
-      - t2.medium
+      - t3a.micro
+      - t3a.small
+      - t3a.medium
     ConstraintDescription: must be a valid EC2 instance type.
 
 Mappings:
   mAWSInstanceType2Arch:
-    t2.micro:
+    t3a.micro:
       Arch: HVM64
-    t2.small:
+    t3a.small:
       Arch: HVM64
-    t2.medium:
+    t3a.medium:
       Arch: HVM64
 
   mAWSRegionArch2AMI:
@@ -120,7 +164,7 @@ Mappings:
     us-west-1:
       HVM64: ami-015954d5e5548d13b
     us-west-2:
-      HVM64: ami-0cb72367e98845d43 
+      HVM64: ami-0cb72367e98845d43
 
 Resources:
 
@@ -128,7 +172,7 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     Properties:
-      BucketName: !Sub '${pBizScope}-${pSystem}-${pApp}-backups-${pAppEnvPurpose}-${AWS::Region}'
+      BucketName: !Sub '${pOrg}-${pSystem}-${pApp}-backups-${pEnvPurpose}-${AWS::Region}'
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         IgnorePublicAcls: true
@@ -143,7 +187,7 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     Properties:
-      BucketName: !Sub '${pBizScope}-${pSystem}-${pApp}-uploads-${pAppEnvPurpose}-${AWS::Region}'
+      BucketName: !Sub '${pOrg}-${pSystem}-${pApp}-uploads-${pEnvPurpose}-${AWS::Region}'
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         IgnorePublicAcls: true
@@ -157,18 +201,18 @@ Resources:
   rAlb:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: !Sub '${pSystem}-${pApp}-${pAppEnvPurpose}'
+      Name: !Sub '${pSystem}-${pApp}-${pEnvPurpose}'
       Scheme: !Ref pAlbScheme
       SecurityGroups:
         - !Ref rAlbSecurityGroup
       Subnets:
-        - !Ref pAlbSubnetId1
-        - !Ref pAlbSubnetId2
+        - Fn::ImportValue: !Sub '${pVpcName}-${pAlbSubnetNameQualifier}-subnet-id-1'
+        - Fn::ImportValue: !Sub '${pVpcName}-${pAlbSubnetNameQualifier}-subnet-id-2'
 
   rAlbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub '${pSystem}-${pApp}-alb-${pAppEnvPurpose}'
+      GroupName: !Sub '${pSystem}-${pApp}-alb-${pEnvPurpose}'
       GroupDescription: HTTP Access from any location
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -188,7 +232,8 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
-      VpcId: !Ref pVpcId
+      VpcId:
+        Fn::ImportValue: !Sub '${pVpcName}-vpc-id'
 
   rHttpListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -238,8 +283,9 @@ Resources:
   rTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: !Sub '${pSystem}-${pApp}-${pAppEnvPurpose}'
-      VpcId: !Ref pVpcId
+      Name: !Sub '${pSystem}-${pApp}-${pEnvPurpose}'
+      VpcId:
+        Fn::ImportValue: !Sub '${pVpcName}-vpc-id'
       HealthCheckIntervalSeconds: 15
       HealthCheckTimeoutSeconds: 10
       HealthCheckPath: /
@@ -252,19 +298,19 @@ Resources:
   rAsg:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      AutoScalingGroupName: !Sub '${pSystem}-${pApp}-${pAppEnvPurpose}'
+      AutoScalingGroupName: !Sub '${pSystem}-${pApp}-${pEnvPurpose}'
       MinSize: '1'
       MaxSize: '2'
       DesiredCapacity: !Ref pServerCount
       VPCZoneIdentifier:
-        - !Ref pAppSubnetId1
-        - !Ref pAppSubnetId2
+        - Fn::ImportValue: !Sub '${pVpcName}-${pWebSubnetNameQualifier}-subnet-id-1'
+        - Fn::ImportValue: !Sub '${pVpcName}-${pWebSubnetNameQualifier}-subnet-id-2'
       TargetGroupARNs:
         - !Ref rTargetGroup
       LaunchConfigurationName: !Ref rLaunchConfig
       Tags:
         - Key: Name
-          Value: !Sub '${pSystem}-${pApp}-${pAppEnvPurpose}'
+          Value: !Sub '${pSystem}-${pApp}-${pEnvPurpose}'
           PropagateAtLaunch: true
     CreationPolicy:
       ResourceSignal:
@@ -274,8 +320,9 @@ Resources:
   rInstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub '${pSystem}-${pApp}-ec2-${pAppEnvPurpose}'
-      VpcId: !Ref pVpcId
+      GroupName: !Sub '${pSystem}-${pApp}-ec2-${pEnvPurpose}'
+      VpcId:
+        Fn::ImportValue: !Sub '${pVpcName}-vpc-id'
       GroupDescription: Allow access via HTTP
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -286,12 +333,12 @@ Resources:
   rLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      LaunchConfigurationName: !Sub '${pSystem}-${pApp}-${pAppEnvPurpose}'
+      LaunchConfigurationName: !Sub '${pSystem}-${pApp}-${pEnvPurpose}'
       InstanceType: !Ref pInstanceType
-      ImageId: !FindInMap 
+      ImageId: !FindInMap
         - mAWSRegionArch2AMI
         - !Ref AWS::Region
-        - !FindInMap 
+        - !FindInMap
           - mAWSInstanceType2Arch
           - !Ref pInstanceType
           - Arch
@@ -303,13 +350,13 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
           yum install -y aws-cfn-bootstrap
-              
+
           /opt/aws/bin/cfn-init -v \
               --stack ${AWS::StackName} \
               --resource rLaunchConfig \
               --configsets All \
               --region ${AWS::Region}
-              
+
           /opt/aws/bin/cfn-signal -e $? \
               --stack ${AWS::StackName} \
               --resource rAsg \
@@ -365,21 +412,21 @@ Resources:
 
                 [/var/log/cloud-init-output.log]
                 file = /var/log/cloud-init-output.log
-                log_group_name = ${rCloudWatchLogsAgentGroup} 
+                log_group_name = ${rCloudWatchLogsAgentGroup}
                 log_stream_name = {instance_id}/cloud-init-output.log
-                datetime_format = 
+                datetime_format =
 
                 [/var/log/cfn-init.log]
                 file = /var/log/cfn-init.log
                 log_group_name = ${rCloudWatchLogsAgentGroup}
                 log_stream_name = {instance_id}/cfn-init.log
-                datetime_format = 
+                datetime_format =
 
                 [/var/log/cfn-wire.log]
                 file = /var/log/cfn-wire.log
                 log_group_name = ${rCloudWatchLogsAgentGroup}
                 log_stream_name = {instance_id}/cfn-wire.log
-                datetime_format = 
+                datetime_format =
 
                 # Discourse logs can be found on the host OS at:
                 # /var/discourse/shared/standalone/log/
@@ -396,13 +443,13 @@ Resources:
                 file = /var/log/httpd/access_log
                 log_group_name = ${rCloudWatchLogsAgentGroup}
                 log_stream_name = {instance_id}/apache_access_log
-                datetime_format = 
+                datetime_format =
 
                 [/var/log/httpd/error_log]
                 file = /var/log/httpd/error_log
                 log_group_name = ${rCloudWatchLogsAgentGroup}
                 log_stream_name = {instance_id}/apache_error_log
-                datetime_format = 
+                datetime_format =
               mode: '000444'
               owner: root
               group: root
@@ -434,40 +481,44 @@ Resources:
               owner: root
               group: root
           commands:
-            modify-index-html:
-              command: 'echo "<p>Served from $(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)" >> /var/www/html/index.html'
-            enable-httpd:
-              command: 'systemctl enable httpd.service'
-            start-httpd:
-              command: 'systemctl start httpd'
+            install-docker:
+              command: 'amazon-linux-extras install docker -y'
+            enable-docker:
+              command: 'systemctl enable docker'
+            start-docker:
+              command: 'systemctl start docker'
+            #enable-ec2-user-control-docker:
+            #  command: 'usermod -a -G docker ec2-user'
+            #modify-index-html:
+            #  command: 'echo "<p>Served from $(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)" >> /var/www/html/index.html'
 
   rCloudWatchLogsAgentGroup:
     Type: AWS::Logs::LogGroup
-    Properties: 
-      LogGroupName: !Sub '/${pSystem}/${pApp}/ec2/${pAppEnvPurpose}'
+    Properties:
+      LogGroupName: !Sub '/${pSystem}/${pApp}/ec2/${pEnvPurpose}'
       RetentionInDays: 1
 
-  rRole: 
+  rRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${pBizScope}-${pSystem}-${pApp}-svc-ec2-${pAppEnvPurpose}' 
-      Path: !Sub '/${pBizScope}/${pSystem}/${pApp}/'
-      AssumeRolePolicyDocument: 
+      RoleName: !Sub '${pOrg}-${pSystem}-${pApp}-svc-ec2-${pEnvPurpose}'
+      Path: !Sub '/${pOrg}/${pSystem}/${pApp}/'
+      AssumeRolePolicyDocument:
         Version: 2012-10-17
-        Statement: 
-          - 
+        Statement:
+          -
             Effect: Allow
-            Principal: 
+            Principal:
               Service: ec2.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
         - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
 
-  rPolicy: 
+  rPolicy:
     Type: AWS::IAM::Policy
     Properties:
-      PolicyName: !Sub '${pBizScope}-${pSystem}-${pApp}-s3_access-${pAppEnvPurpose}'
+      PolicyName: !Sub '${pOrg}-${pSystem}-${pApp}-s3_access-${pEnvPurpose}'
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -480,13 +531,21 @@ Resources:
             Resource:
               - !GetAtt rDiscourseBackupsBucket.Arn
               - !GetAtt rDiscourseUploadsBucket.Arn
-      Roles: 
+      Roles:
         - Ref: rRole
 
   rInstanceProfile:
     Type: AWS::IAM::InstanceProfile
-    Properties: 
-      InstanceProfileName: !Sub '${pBizScope}-${pSystem}-${pApp}-${pAppEnvPurpose}'
-      Path: !Sub '/${pBizScope}/${pSystem}/${pApp}/'
+    Properties:
+      InstanceProfileName: !Sub '${pOrg}-${pSystem}-${pApp}-${pEnvPurpose}'
+      Path: !Sub '/${pOrg}/${pSystem}/${pApp}/'
       Roles:
         - !Ref rRole
+
+Outputs:
+
+  oUrl:
+    Value: !GetAtt
+      - rAlb
+      - DNSName
+    Description: Newly created application URL

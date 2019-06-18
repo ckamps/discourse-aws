@@ -1,5 +1,5 @@
 # Test Script
 
 ```
-$ deploy-stack --app-name cloud --env-purpose demo
+$ manage-stack --app-name cloud --env-purpose demo
 ```
