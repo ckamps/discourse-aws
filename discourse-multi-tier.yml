@@ -94,6 +94,16 @@ Parameters:
     Description: Used to qualify resource names. 10 characters max.
     AllowedPattern: '^[a-zA-Z0-9-_]{1,10}$'
 
+  pDiscourseDockerRepo:
+    Type: String
+    Description: Git repo of discourse_docker source
+    Default: https://github.com/discourse/discourse_docker.git
+
+  pDiscourseEnvDataRepo:
+    Type: String
+    Description: Git repo of discourse_docker source
+    Default: https://github.com/ckamps/discourse-env-data-example.git
+
   pVpcName:
     Description: Name of the existing VPC
     Type: String
@@ -363,13 +373,13 @@ Resources:
               --region ${AWS::Region}
 
     Metadata:
-      'AWS::CloudFormation::Init':
+      AWS::CloudFormation::Init:
         configSets:
           All:
-            - ConfigureCloudWatchMetrics
-            - ConfigureCloudWatchLogsAgent
-            - ConfigureDiscourse
-        ConfigureCloudWatchMetrics:
+            - 01-ConfigureCloudWatchMetrics
+            - 02-ConfigureCloudWatchLogsAgent
+            - 03-ConfigureDiscourse
+        01-ConfigureCloudWatchMetrics:
           packages:
             yum:
               perl-Switch: []
@@ -388,13 +398,13 @@ Resources:
               owner: ec2-user
               group: ec2-user
           commands:
-            01_YumUpdateMonitoring:
+            01-YumUpdateMonitoring:
               command: yum update -y
-            02_MonitoringCron:
+            02-MonitoringCron:
               command: >-
                 chmod +x /home/ec2-user/aws-scripts-mon/*.pl && crontab -u
                 ec2-user /home/ec2-user/crontab && rm /home/ec2-user/crontab
-        ConfigureCloudWatchLogsAgent:
+        02-ConfigureCloudWatchLogsAgent:
           packages:
             yum:
               awslogs: []
@@ -463,16 +473,17 @@ Resources:
               owner: root
               group: root
           commands:
-            create-awslogs-state-file:
+            01-create-awslogs-state-file:
               command: 'mkdir -p /var/awslogs/state'
-            enable-awslogsd:
+            02-enable-awslogsd:
               command: 'systemctl enable awslogsd.service'
-            start-awslogsd:
+            03-start-awslogsd:
               command: 'systemctl start awslogsd'
-        ConfigureDiscourse:
+        03-ConfigureDiscourse:
           packages:
             yum:
               httpd: []
+              git: []
           files:
             /var/www/html/index.html:
               content: |
@@ -481,12 +492,32 @@ Resources:
               owner: root
               group: root
           commands:
-            install-docker:
+            01-install-docker:
               command: 'amazon-linux-extras install docker -y'
-            enable-docker:
+            02-enable-docker:
               command: 'systemctl enable docker'
-            start-docker:
+            03-start-docker:
               command: 'systemctl start docker'
+            #install-packages:
+            #  command: 'yum install python3 python3-pip jinja2-cli jinja2==2.10 -y'
+            #clone-discourse:
+            #  command: 'git clone ${DISCOURSE_DOCKER_REPO} /var/discourse'
+            #  env:
+            #    DISCOURSE_DOCKER_REPO: !Ref pDiscourseDockerRepo
+            #clone-discourse-env-data:
+            #  command: 'mkdir /tmp/discourse-env; git clone ${DISCOURSE_ENV_DATA_REPO} /tmp/discourse-env'
+            #  env:
+            #    DISCOURSE_ENV_DATA_REPO: !Ref pDiscourseEnvDataRepo
+            #render-discourse-app-config:
+            #  command: 'cd /tmp/discourse-env'
+            #rebuild-discourse-image:
+            #  command: 'cd /var/discourse; ./launcher rebuild app'
+            04-modify-index-html:
+              command: 'echo "<p>Served from $(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)" >> /var/www/html/index.html'
+            05-enable-httpd:
+              command: 'systemctl enable httpd.service'
+            06-start-httpd:
+              command: 'systemctl start httpd'
             #enable-ec2-user-control-docker:
             #  command: 'usermod -a -G docker ec2-user'
             #modify-index-html:
